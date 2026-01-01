@@ -467,7 +467,7 @@ class Counter
     /// This stores the users who have entered the conga line, if a user enters the line more than once it doesn't
     /// break the line, but it doesn't count towards the high score.
     /// </summary>
-    public List<long> uniqueRedPandasInLine = new List<long>();
+    public HashSet<long> uniqueRedPandasInLine = new HashSet<long>();
 
     /// <summary>
     /// This is the next victory message to send to the group chat when a new high score is reached.

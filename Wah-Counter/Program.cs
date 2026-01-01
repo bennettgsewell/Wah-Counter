@@ -267,16 +267,29 @@ bot.OnMessage += async (message, _) =>
             {
                 switch (incomingMsg)
                 {
+                    // The list command prints out all the stickers currently enabled.
                     case "/list":
-                        foreach (var sticker in dancingWahStickerIds)
+                        // If there are no stickers, display a message.
+                        if (!dancingWahStickerIds.Any())
                         {
-                            await bot.SendSticker(chatId, sticker);
+                            responseMsg =
+                                "We need moar pandas to start da pawade! Send a sticker to add 'em! WAH!";
                         }
+                        else
+                        {
+                            // Print each sticker
+                            foreach (var sticker in dancingWahStickerIds)
+                            {
+                                await bot.SendSticker(chatId, sticker);
+                            }
 
-                        responseMsg = "Lookie lookie at all da fluffy fwiends ready to march\\! OwO";
+                            responseMsg = "Lookie lookie at all da fluffy fwiends ready to march\\! OwO";
+                        }
                         break;
+
                     default:
-                        responseMsg = "Hello, send me a sticker and I will enable/disable its use in the conga line.\n/list to list all stickers";
+                        responseMsg =
+                            "Hello, send me a sticker and I will enable/disable its use in the conga line.\n/list to list all stickers";
                         break;
                 }
             }

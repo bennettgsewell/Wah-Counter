@@ -257,6 +257,11 @@ bot.OnMessage += async (message, _) =>
             {
                 await bot.SendMessage(message.Chat, $"There were {counts.numberOfWAHs} dancing WAHs in the line which would have been a new high score, however, too many red pandas put the sticker in multiple times! That doesn't count towards the conga line!!!");
             }
+            // No high score was broken, but after three in a line, print stats.
+            else if (counts.uniqueRedPandasInLine.Count >= 3)
+            {
+                await bot.SendMessage(message.Chat, $"❌ LINE STATUS: SHATTERED\n📉 FINAL STREAK: {counts.uniqueRedPandasInLine.Count} \n🏆 ALL-TIME PEAK: {counts.highScore}");
+            }
                 
             // Reset the conga line!
             counts.numberOfWAHs = 0;

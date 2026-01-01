@@ -1,4 +1,5 @@
-﻿using Telegram.Bot;
+﻿using System.Text;
+using Telegram.Bot;
 using Telegram.Bot.Types.Enums;
 
 // I want to make this bot as SIMPLE as it can possibly be.
@@ -254,7 +255,7 @@ bot.OnMessage += async (message, _) =>
 
         Console.WriteLine($"message.Chat.Type: {message.Chat.Type}");
         Console.WriteLine($"message.Chat.Id: {message.Chat.Id}");
-        Console.WriteLine($"message.From.Id: {message.From?.Id.ToString() ?? "NULL"}");
+        Console.WriteLine($"message.From.Id: {message.From.Id}");
 
         // If this is a private chat with the bot, the admin can manage the bot.
         if (message.Chat.Type == ChatType.Private)
@@ -353,6 +354,27 @@ bot.OnMessage += async (message, _) =>
                 // This only stores unique red pandas who put a sticker in the line.
                 counts.uniqueRedPandasInLine.Add(fromId);
 
+                {
+                    StringBuilder nameParts = new StringBuilder();
+                    nameParts.Append(message.From.FirstName);
+                    
+                    if (!string.IsNullOrWhiteSpace(message.From.LastName))
+                    {
+                        nameParts.Append(' ');
+                        nameParts.Append(message.From.LastName);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(message.From.Username))
+                    {
+                        nameParts.Append(" (@");
+                        nameParts.Append(message.From.Username);
+                        nameParts.Append(')');
+                    }
+
+                    counts.specialThanksNames.Add(nameParts.ToString());
+                }
+                
+
                 // Increment the count!
                 // This stores all the stickers regardless if they're a unique red panda.
                 // If the numberOfWAHs is greater than the high score, but they're not unique red pandas.
@@ -381,8 +403,26 @@ bot.OnMessage += async (message, _) =>
                     // Replace the {0} in the message with the new high score.
                     string msg = string.Format(victoryMessage, counts.highScore);
 
+                    StringBuilder bigMessage = new StringBuilder();
+
+                    bigMessage.Append(msg);
+                    bigMessage.AppendLine("\n\nSpecial Thanks;");
+                    foreach (var user in counts.specialThanksNames)
+                    {
+                        bigMessage.Append(" - ");
+                        bigMessage.AppendLine(user);
+                    }
+
+                    string bigMessageStr = bigMessage.ToString();
+                    
+                    // If the message is larger than 4096, trim it down.
+                    if (bigMessageStr.Length >= 4096)
+                    {
+                        bigMessageStr = bigMessageStr.Substring(0, 4096);
+                    }
+
                     // Write a message to the group chat
-                    await bot.SendMessage(message.Chat, msg);
+                    await bot.SendMessage(message.Chat, bigMessageStr);
 
                     // Save all the high scores to the high score file.
                     // GroupChatId|HighScore|NextVictoryMessage
@@ -420,6 +460,7 @@ bot.OnMessage += async (message, _) =>
                 // Reset the conga line!
                 counts.numberOfWAHs = 0;
                 counts.uniqueRedPandasInLine.Clear();
+                counts.specialThanksNames.Clear();
             }
         }
     }
@@ -469,6 +510,8 @@ class Counter
     /// </summary>
     public HashSet<long> uniqueRedPandasInLine = new HashSet<long>();
 
+    public HashSet<string> specialThanksNames = new HashSet<string>();
+    
     /// <summary>
     /// This is the next victory message to send to the group chat when a new high score is reached.
     /// </summary>

@@ -1,6 +1,4 @@
-﻿using System.Collections.Concurrent;
-using Telegram.Bot;
-using Telegram.Bot.Types;
+﻿using Telegram.Bot;
 
 // I want to make this bot as SIMPLE as it can possibly be.
 // You can build the program with `dotnet build` for Windows, Mac or Linux if you have .NET SDK installed.

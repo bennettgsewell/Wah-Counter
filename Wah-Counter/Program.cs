@@ -267,8 +267,16 @@ bot.OnMessage += async (message, _) =>
             {
                 switch (incomingMsg)
                 {
+                    case "/list":
+                        foreach (var sticker in dancingWahStickerIds)
+                        {
+                            await bot.SendSticker(chatId, sticker);
+                        }
+
+                        responseMsg = "Lookie lookie at all da fluffy fwiends ready to march\\! OwO";
+                        break;
                     default:
-                        responseMsg = "Hello, send me a sticker and I will enable/disable its use in the conga line.";
+                        responseMsg = "Hello, send me a sticker and I will enable/disable its use in the conga line.\n/list to list all stickers";
                         break;
                 }
             }

@@ -1,4 +1,5 @@
 ﻿using Telegram.Bot;
+using Telegram.Bot.Types.Enums;
 
 // I want to make this bot as SIMPLE as it can possibly be.
 // You can build the program with `dotnet build` for Windows, Mac or Linux if you have .NET SDK installed.
@@ -7,9 +8,19 @@
 // The bot must have /setprivacy DISABLED. This allows the bot to see messages that do not start with a / like /start
 // We need this so the bot can see normal messages like stickers.
 
-// This is the file ID of the dancing WAH sticker, basically stickers in Telegram are just webp image files that get sent
+if (!File.Exists("stickers.txt"))
+{
+    File.WriteAllLines("stickers.txt", ["CAACAgEAAxkBAAMGaVbDJf0onqbq2omi5FCcJh-u-A0AAlIFAAIZXTBFIoIPjpIdJ-U4BA"]);
+}
+
+// This is the file IDs of the dancing WAH stickers, basically stickers in Telegram are just webp image files that get sent
 // around. Below in the OnMessage block I use this to check if the message contains an image with the same file ID.
-const string dancingWahStickerId = "CAACAgEAAxkBAAMGaVbDJf0onqbq2omi5FCcJh-u-A0AAlIFAAIZXTBFIoIPjpIdJ-U4BA";
+HashSet<string> dancingWahStickerIds = new HashSet<string>();
+
+foreach (var stickerId in File.ReadAllLines("stickers.txt"))
+{
+    dancingWahStickerIds.Add(stickerId);
+}
 
 // We need to get the bot API key into this program;
 // You can either pull the API key for the bot from an environment variable.
@@ -199,9 +210,11 @@ bot.OnMessage += async (message, _) =>
             counts = new Counter();
             wahCounts.Add(groupChatId, counts);
         }
-
+        
+        Console.WriteLine($"Sticker received: {message.Sticker?.FileId ?? "NULL"}");
+        
         // If the message being sent into the group chat is the dancing wah sticker
-        if (message.Sticker?.FileId == dancingWahStickerId)
+        if (message.Sticker is not null && dancingWahStickerIds.Contains(message.Sticker.FileId))
         {
             // Increment the Wah Count
             Console.WriteLine("I see a dancing WAH!");

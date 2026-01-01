@@ -252,6 +252,11 @@ bot.OnMessage += async (message, _) =>
                 File.WriteAllLines("highscores.txt",
                     wahCounts.Select(c => $"{groupChatId}|{counts.highScore}|{counts.nextVictoryMessage}"));
             }
+            // If the line ends, but there aren't enough unique red pandas in the line. This message will be sent.
+            else if (counts.numberOfWAHs > counts.highScore)
+            {
+                await bot.SendMessage(message.Chat, $"There were {counts.numberOfWAHs} dancing WAHs in the line which would have been a new high score, however, too many red pandas put the sticker in multiple times! That doesn't count towards the conga line!!!");
+            }
                 
             // Reset the conga line!
             counts.numberOfWAHs = 0;

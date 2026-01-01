@@ -159,6 +159,33 @@ string[] funnyMessages =
     "WAH! Our legacy is cemented at {0}!",
 ];
 
+string[] almostBrokenMessages = new string[]
+{
+    "WAH!! 😱 My wittle heart can't take it! We were only {1} fluffies away from beating da {0} record! OwO",
+    "NOOOO! 🐾 The conga line tripped! We needed just {1} more to smash {0}! My beans are sad now... UwU",
+    "So close I can almost taste da bamboo! 🎋 Only {1} more till we hit {0}! WAH!",
+    "OwO? What's this? A tragedy! {1} more stickers and we woulda been legends of {0}!",
+    "The tail-to-snoot connection failed! 🔌 Just {1} more to beat {0}! I'm gonna go scream 'WAH' into a pillow.",
+    "B-B-B-BAMBOOZLED! {1} away from {0}! Who broke da line?! I just wanna talk... 💢🐾",
+    "My snoot was twiching for a new record! We were {1} away from {0}! WAH WAH WAH!",
+    "The Firefox cache has been cleared too soon! 🦊 We needed {1} more to reach {0}!",
+    "Ailurus fulgens is shaking! 📉 Only {1} away from {0}! We almost had it, fwiends!",
+    "Dat was so close I need a nappie-time to recover! 💤 {1} away from {0}! UwU",
+    "The Great Wah-ll has fallen! {1} steps away from a new {0} record! 🧱🐾",
+    "I'm cweying orange tears! 😭 Just {1} more and we woulda beaten {0}! Whyyyy?!",
+    "Paws were moving, tails were wagging, then... CRASH! {1} away from {0}! WAH!",
+    "You call dat a conga? We were {1} away from {0}! We need more WAH-mentum next time! >w<",
+    "The Red Rail derailed! 🚂💥 {1} more cars and we woulda hit {0}!",
+    "Error 403: Record Forbidden! 🚫 Only {1} more stickers needed for {0}! My fluff is ruffled.",
+    "Snoot status: Un-booped. ❌ We were {1} away from {0}! OwO",
+    "I was already making da trophy! 🏆 We only needed {1} more to hit {0}! WAH!",
+    "Is it a bird? Is it a plane? No, it's a broken line {1} away from {0}! *sad panda noises*",
+    "We almost reached Red Panda Nirvana! 🌌 Just {1} more till {0}! Keep da dream alive! UwU",
+    "My tiny claws can't hold all dis sadness! {1} away from {0}! 🐾💔",
+    "The conga conductor is calling a foul! 🚩 {1} more stickers for {0}! Back to da bamboo forest!",
+    "WAH! I need a huggie! We missed the {0} record by only {1} wittle beans! >w<",
+    "Whoopsie-daisy! 🌼 The line snapped {1} away from {0}! Let's try again, pandas! WAH!"
+};
 
 // This library is from:
 // https://www.nuget.org/packages/telegram.bot/
@@ -203,6 +230,8 @@ if (File.Exists("highscores.txt"))
 // This prevents the CPU from accessing the same memory with multiple threads, we only allow one message to be 
 // processed at a single time.
 SemaphoreSlim semaphore = new(1, 1);
+
+Random r = new Random();
 
 // When the bot sees a message, run this block of code.
 bot.OnMessage += async (message, _) =>
@@ -285,6 +314,7 @@ bot.OnMessage += async (message, _) =>
 
                             responseMsg = "Lookie lookie at all da fluffy fwiends ready to march\\! OwO";
                         }
+
                         break;
 
                     default:
@@ -369,8 +399,22 @@ bot.OnMessage += async (message, _) =>
                 // No high score was broken, but after three in a line, print stats.
                 else if (counts.uniqueRedPandasInLine.Count >= 3)
                 {
-                    await bot.SendMessage(message.Chat,
-                        $"❌ LINE STATUS: SHATTERED\n📉 FINAL STREAK: {counts.uniqueRedPandasInLine.Count} \n🏆 ALL-TIME PEAK: {counts.highScore}");
+                    double percentThere = counts.uniqueRedPandasInLine.Count / (double)counts.highScore;
+
+                    if (percentThere > 0.80D)
+                    {
+                        var almostMsg = almostBrokenMessages[r.Next() % almostBrokenMessages.Length];
+
+                        almostMsg = string.Format(almostMsg, counts.highScore + 1,
+                            counts.highScore - counts.uniqueRedPandasInLine.Count + 1);
+
+                        await bot.SendMessage(message.Chat, almostMsg);
+                    }
+                    else
+                    {
+                        await bot.SendMessage(message.Chat,
+                            $"❌ LINE STATUS: SHATTERED\n📉 FINAL STREAK: {counts.uniqueRedPandasInLine.Count} \n🏆 ALL-TIME PEAK: {counts.highScore}");
+                    }
                 }
 
                 // Reset the conga line!
@@ -423,7 +467,7 @@ class Counter
     /// This stores the users who have entered the conga line, if a user enters the line more than once it doesn't
     /// break the line, but it doesn't count towards the high score.
     /// </summary>
-    public HashSet<long> uniqueRedPandasInLine = new HashSet<long>();
+    public List<long> uniqueRedPandasInLine = new List<long>();
 
     /// <summary>
     /// This is the next victory message to send to the group chat when a new high score is reached.

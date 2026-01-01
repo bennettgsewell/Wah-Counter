@@ -8,9 +8,26 @@ using Telegram.Bot.Types.Enums;
 // The bot must have /setprivacy DISABLED. This allows the bot to see messages that do not start with a / like /start
 // We need this so the bot can see normal messages like stickers.
 
+// Store all data files in the data directory.
+Environment.CurrentDirectory += Path.DirectorySeparatorChar + "data";
+
+HashSet<long> admins = new HashSet<long>();
+
+if (!File.Exists("admins.txt"))
+{
+    File.Create("admins.txt").Close();
+}
+
+foreach (var adminId in File.ReadAllLines("admins.txt"))
+{
+    admins.Add(long.Parse(adminId.Trim()));
+}
+
 if (!File.Exists("stickers.txt"))
 {
-    File.WriteAllLines("stickers.txt", ["CAACAgEAAxkBAAMGaVbDJf0onqbq2omi5FCcJh-u-A0AAlIFAAIZXTBFIoIPjpIdJ-U4BA"]);
+    File.WriteAllLines("stickers.txt",
+        // This is the ID for the original bouncing red panda sticker.
+        ["CAACAgEAAxkBAAMGaVbDJf0onqbq2omi5FCcJh-u-A0AAlIFAAIZXTBFIoIPjpIdJ-U4BA"]);
 }
 
 // This is the file IDs of the dancing WAH stickers, basically stickers in Telegram are just webp image files that get sent
@@ -143,7 +160,6 @@ string[] funnyMessages =
 ];
 
 
-
 // This library is from:
 // https://www.nuget.org/packages/telegram.bot/
 // https://github.com/TelegramBots/Telegram.Bot
@@ -164,11 +180,11 @@ if (File.Exists("highscores.txt"))
     foreach (var line in lines)
     {
         var scoreParts = line.Split('|');
-        
+
         // The line must have three parts
-        if(scoreParts.Length != 3)
+        if (scoreParts.Length != 3)
             continue; // Skip the line, data bad.
-        
+
         // We store three values in each line of the high score file
         // GroupChatId|HighScore|NextVictoryMessage
         if (long.TryParse(scoreParts[0], out long groupChatId)
@@ -196,89 +212,150 @@ bot.OnMessage += async (message, _) =>
 
     try
     {
+        // If the message being received has no author, don't do anything.
+        // This is impossible, but .NET won't compile the program unless this is checked.
+        if (message.From is null)
+            return;
+
+        long fromId = message.From.Id;
+
         // This is the ID of the group chat or individual chat with the bot.
         // This allows the bot to support more than one group chat and not get confused.
-        long groupChatId = message.Chat.Id;
+        long chatId = message.Chat.Id;
 
-        // This object stores the counts.
-        Counter? counts;
+        Console.WriteLine($"message.Chat.Type: {message.Chat.Type}");
+        Console.WriteLine($"message.Chat.Id: {message.Chat.Id}");
+        Console.WriteLine($"message.From.Id: {message.From?.Id.ToString() ?? "NULL"}");
 
-        // See if we've seen this group before.
-        if (!wahCounts.TryGetValue(groupChatId, out counts))
+        // If this is a private chat with the bot, the admin can manage the bot.
+        if (message.Chat.Type == ChatType.Private)
         {
-            // We have not seen this group before, add it.
-            counts = new Counter();
-            wahCounts.Add(groupChatId, counts);
-        }
-        
-        Console.WriteLine($"Sticker received: {message.Sticker?.FileId ?? "NULL"}");
-        
-        // If the message being sent into the group chat is the dancing wah sticker
-        if (message.Sticker is not null && dancingWahStickerIds.Contains(message.Sticker.FileId))
-        {
-            // Increment the Wah Count
-            Console.WriteLine("I see a dancing WAH!");
-
-            // If the message being received has no author, don't do anything.
-            // This is impossible, but .NET won't compile the program unless this is checked.
-            if (message.From is null)
+            if (!admins.Contains(fromId))
+            {
+                await bot.SendMessage(fromId,
+                    "OwO? What’s this? Your paws don't have the permissions to touch this button! This command is for big-paws admins only! No touchie the forbidden bamboo! 🐾");
                 return;
+            }
 
-            // This stores the users who have entered the conga line, if a user enters the line more than once it
-            // doesn't break the line, but it doesn't count towards a new high score.
-            // This only stores unique red pandas who put a sticker in the line.
-            counts.uniqueRedPandasInLine.Add(message.From.Id);
+            string incomingMsg = message.Text?.Trim() ?? string.Empty;
+            incomingMsg = incomingMsg.ToLowerInvariant();
 
-            // Increment the count!
-            // This stores all the stickers regardless if they're a unique red panda.
-            // If the numberOfWAHs is greater than the high score, but they're not unique red pandas.
-            // The bot will send a message to chat saying how many stickers were in the line, but how it's not a new
-            // high score because they had too many red pandas put in multiple stickers instead of just one.
-            counts.numberOfWAHs += 1;
+            string responseMsg;
+
+            if (message.Sticker is not null)
+            {
+                string stickerFileId = message.Sticker.FileId;
+
+                if (dancingWahStickerIds.Contains(stickerFileId))
+                {
+                    dancingWahStickerIds.Remove(stickerFileId);
+                    responseMsg =
+                        "❌ Hmph! This sticker has been banished from the conga line! Too much chaos, not enough WAH! OwO";
+                }
+                else
+                {
+                    dancingWahStickerIds.Add(stickerFileId);
+                    responseMsg =
+                        "✅ A new panda has joined the parade! This sticker is now officially part of the conga line! WAH!";
+                }
+
+                // Save all the stickers to the sticker txt
+                File.Delete("stickers.txt");
+                File.WriteAllLines("stickers.txt", dancingWahStickerIds);
+            }
+            else
+            {
+                switch (incomingMsg)
+                {
+                    default:
+                        responseMsg = "Hello, send me a sticker and I will enable/disable its use in the conga line.";
+                        break;
+                }
+            }
+
+            Console.WriteLine(responseMsg);
+            await bot.SendMessage(chatId, responseMsg);
         }
-        // The message was not a dancing wah sticker, restart the counter.
         else
         {
-            Console.WriteLine("I see no wah here.");
+            // This object stores the counts.
+            Counter? counts;
 
-            // If the number of WAHs is higher than the last high score, send a message to the chat!
-            if (counts.uniqueRedPandasInLine.Count > counts.highScore)
+            // See if we've seen this group before.
+            if (!wahCounts.TryGetValue(chatId, out counts))
             {
-                // Set the new high score!
-                counts.highScore = counts.uniqueRedPandasInLine.Count;
-
-                // Write a message to the terminal
-                Console.WriteLine($"New conga line high score reached {counts.highScore}!!!");
-
-                string victoryMessage = funnyMessages[counts.nextVictoryMessage % funnyMessages.Length];
-
-                counts.nextVictoryMessage += 1;
-
-                // Replace the {0} in the message with the new high score.
-                string msg = string.Format(victoryMessage, counts.highScore);
-                
-                // Write a message to the group chat
-                await bot.SendMessage(message.Chat, msg);
-                
-                // Save all the high scores to the high score file.
-                // GroupChatId|HighScore|NextVictoryMessage
-                File.WriteAllLines("highscores.txt",
-                    wahCounts.Select(c => $"{groupChatId}|{counts.highScore}|{counts.nextVictoryMessage}"));
+                // We have not seen this group before, add it.
+                counts = new Counter();
+                wahCounts.Add(chatId, counts);
             }
-            // If the line ends, but there aren't enough unique red pandas in the line. This message will be sent.
-            else if (counts.numberOfWAHs > counts.highScore)
+
+            Console.WriteLine($"Sticker received: {message.Sticker?.FileId ?? "NULL"}");
+
+            // If the message being sent into the group chat is the dancing wah sticker
+            if (message.Sticker is not null && dancingWahStickerIds.Contains(message.Sticker.FileId))
             {
-                await bot.SendMessage(message.Chat, $"There were {counts.numberOfWAHs} dancing WAHs in the line which would have been a new high score, however, too many red pandas put the sticker in multiple times! That doesn't count towards the conga line!!!");
+                // Increment the Wah Count
+                Console.WriteLine("I see a dancing WAH!");
+
+                // This stores the users who have entered the conga line, if a user enters the line more than once it
+                // doesn't break the line, but it doesn't count towards a new high score.
+                // This only stores unique red pandas who put a sticker in the line.
+                counts.uniqueRedPandasInLine.Add(fromId);
+
+                // Increment the count!
+                // This stores all the stickers regardless if they're a unique red panda.
+                // If the numberOfWAHs is greater than the high score, but they're not unique red pandas.
+                // The bot will send a message to chat saying how many stickers were in the line, but how it's not a new
+                // high score because they had too many red pandas put in multiple stickers instead of just one.
+                counts.numberOfWAHs += 1;
             }
-            // No high score was broken, but after three in a line, print stats.
-            else if (counts.uniqueRedPandasInLine.Count >= 3)
+            // The message was not a dancing wah sticker, restart the counter.
+            else
             {
-                await bot.SendMessage(message.Chat, $"❌ LINE STATUS: SHATTERED\n📉 FINAL STREAK: {counts.uniqueRedPandasInLine.Count} \n🏆 ALL-TIME PEAK: {counts.highScore}");
+                Console.WriteLine("I see no wah here.");
+
+                // If the number of WAHs is higher than the last high score, send a message to the chat!
+                if (counts.uniqueRedPandasInLine.Count > counts.highScore)
+                {
+                    // Set the new high score!
+                    counts.highScore = counts.uniqueRedPandasInLine.Count;
+
+                    // Write a message to the terminal
+                    Console.WriteLine($"New conga line high score reached {counts.highScore}!!!");
+
+                    string victoryMessage = funnyMessages[counts.nextVictoryMessage % funnyMessages.Length];
+
+                    counts.nextVictoryMessage += 1;
+
+                    // Replace the {0} in the message with the new high score.
+                    string msg = string.Format(victoryMessage, counts.highScore);
+
+                    // Write a message to the group chat
+                    await bot.SendMessage(message.Chat, msg);
+
+                    // Save all the high scores to the high score file.
+                    // GroupChatId|HighScore|NextVictoryMessage
+                    File.Delete("highscores.txt");
+                    File.WriteAllLines("highscores.txt",
+                        wahCounts.Select(c => $"{chatId}|{counts.highScore}|{counts.nextVictoryMessage}"));
+                }
+                // If the line ends, but there aren't enough unique red pandas in the line. This message will be sent.
+                else if (counts.numberOfWAHs > counts.highScore)
+                {
+                    await bot.SendMessage(message.Chat,
+                        $"There were {counts.numberOfWAHs} dancing WAHs in the line which would have been a new high score, however, too many red pandas put the sticker in multiple times! That doesn't count towards the conga line!!!");
+                }
+                // No high score was broken, but after three in a line, print stats.
+                else if (counts.uniqueRedPandasInLine.Count >= 3)
+                {
+                    await bot.SendMessage(message.Chat,
+                        $"❌ LINE STATUS: SHATTERED\n📉 FINAL STREAK: {counts.uniqueRedPandasInLine.Count} \n🏆 ALL-TIME PEAK: {counts.highScore}");
+                }
+
+                // Reset the conga line!
+                counts.numberOfWAHs = 0;
+                counts.uniqueRedPandasInLine.Clear();
             }
-                
-            // Reset the conga line!
-            counts.numberOfWAHs = 0;
-            counts.uniqueRedPandasInLine.Clear();
         }
     }
     catch (Exception ex)
@@ -320,7 +397,7 @@ class Counter
     /// This is the number of dancing stickers added to the conga line, regardless of whether they're a unique user.
     /// </summary>
     public int numberOfWAHs = 0;
-    
+
     /// <summary>
     /// This stores the users who have entered the conga line, if a user enters the line more than once it doesn't
     /// break the line, but it doesn't count towards the high score.
